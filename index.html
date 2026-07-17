@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Informe Técnico — Cartera Priorizada</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/styles-v2.css" />
+</head>
+<body>
+  <main class="frame">
+
+   <!-- ============ VISTA DE PROYECTO (ficha) ============ -->
+   <div class="project-view" id="projectView" hidden>
+
+    <!-- ============ TÍTULO + PLAZO ============ -->
+    <div class="titlebar">
+      <div class="title-main">
+        <h1 id="r-title">—</h1>
+        <button class="title-menu-btn js-menu-trigger" aria-label="Ir al menú de programas" aria-controls="menuView">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span class="mf-label">Menú</span>
+        </button>
+      </div>
+      <div class="deadline">
+        Término del plazo de desembolso del contrato de préstamo:
+        <b id="r-deadline">—</b>
+      </div>
+    </div>
+
+    <!-- ============ CUERPO ============ -->
+    <div class="grid">
+
+      <!-- ===== IZQUIERDA: indicadores + gráfico ===== -->
+      <section class="col-left">
+
+        <!-- Indicadores · panel navy + franja blanca -->
+        <div class="fin-block">
+          <div class="fin-head">
+            <h3>Ejecución Financiera</h3>
+            <span class="cui">CUI <span id="r-cui">—</span></span>
+          </div>
+          <div class="np-top">
+            <div class="m"><span class="k">Costo Total</span><span class="v" id="r-costo">—</span></div>
+            <div class="m"><span class="k">Devengado Acumulado</span><span class="v" id="r-devengado">—</span></div>
+            <div class="m gold"><span class="k">Avance Financiero</span><span class="v" id="r-avance">—</span></div>
+          </div>
+          <div class="np-foot">
+            <div class="li"><span class="dot"></span><span class="k">PIM 2026</span><span class="v" id="r-pim">—</span></div>
+            <div class="li am"><span class="dot"></span><span class="k">PIM por Ejecutar</span><span class="v" id="r-pimej">—</span></div>
+            <div class="li"><span class="dot"></span><span class="k">Certificado 2026</span><span class="v" id="r-cert">—</span></div>
+            <div class="li am"><span class="dot"></span><span class="k">FF · RO</span><span class="v" id="r-ro">—</span></div>
+            <div class="li"><span class="dot"></span><span class="k">Devengado 2026</span><span class="v" id="r-dev26">—</span></div>
+            <div class="li am"><span class="dot"></span><span class="k">FF · ROOC</span><span class="v" id="r-rooc">—</span></div>
+          </div>
+        </div>
+
+        <!-- Gráfico -->
+        <figure class="chart-card">
+          <button class="chart-expand" id="chartExpand" title="Ver en grande">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            Ampliar
+          </button>
+          <figcaption class="chart-pill">Meta MEF · Ejec. Proy. · Ejecución</figcaption>
+          <div class="chart-box"><canvas id="chart"></canvas></div>
+        </figure>
+      </section>
+
+      <!-- ===== DERECHA: sidebar de estado ===== -->
+      <aside class="col-right">
+
+        <div class="status-head">
+          <div class="sh-left">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21v-5h16v5"/><path d="M9 16V8l3-3 3 3v8"/><circle cx="12" cy="6" r="1"/></svg>
+            <h2 id="r-status">—</h2>
+          </div>
+          <span class="chip-active" id="r-chip">—</span>
+        </div>
+        <p class="status-sub" id="r-statussub">—</p>
+
+        <!-- Estado situacional -->
+        <div class="card estado">
+          <h3 class="card-h">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+            Estado Situacional
+          </h3>
+          <div class="dates">
+            <div class="date-cell"><span class="v p" id="r-finicio">—</span><span class="k">Fecha Inicio</span></div>
+            <div class="date-cell"><span class="v s" id="r-ffin">—</span><span class="k">Fecha Fin</span></div>
+            <div class="date-cell"><span class="v p" id="r-prog">—</span><span class="k">Av. Programado</span></div>
+            <div class="date-cell"><span class="v s" id="r-ejec">—</span><span class="k">Av. Ejecutado</span></div>
+          </div>
+          <div class="sec-sep"><span>Observaciones</span></div>
+          <ul class="notes" id="r-notes"></ul>
+        </div>
+
+        <!-- Alerta (se oculta si no hay) -->
+        <div class="alert" id="r-alert">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          <p id="r-alert-text">—</p>
+        </div>
+
+        <!-- Hitos -->
+        <div class="card hitos">
+          <h3 class="card-h">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="1"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+            Hitos del Proyecto
+          </h3>
+          <div id="r-hitos"></div>
+        </div>
+
+        <!-- Riesgo -->
+        <div class="riesgo">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          <div>
+            <h3>Riesgo Identificado</h3>
+            <div id="r-riesgo"></div>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+   </div><!-- /projectView -->
+
+   <!-- ============ VISTA DE CARÁTULA (sección) ============ -->
+   <div class="cover" id="coverView" hidden>
+     <div class="cover-bg"></div>
+     <div class="cover-inner">
+       <span class="cover-kicker">Cartera Priorizada</span>
+       <h1 class="cover-acro" id="c-acro">—</h1>
+       <p class="cover-name" id="c-name">—</p>
+     </div>
+   </div>
+
+   <!-- ============ VISTA DE MENÚ (página de programas · estilo carátula) ============ -->
+   <div class="cover menu-view" id="menuView" hidden>
+     <div class="cover-bg"></div>
+     <div class="menu-inner">
+       <span class="cover-kicker">Cartera Priorizada de Inversiones</span>
+       <h1 class="menu-title">Selecciona un <em>Programa</em></h1>
+       <p class="menu-lead">Según PIM y número de inversiones · En millones de soles</p>
+       <div class="menu-progs" id="menuProgs"></div>
+        <div class="admin-link-container" style="margin-top: clamp(20px, 3vw, 40px); display: flex; justify-content: center; z-index: 10;">
+          <a href="admin.html" class="btn-admin-panel">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span>Panel de Administración</span>
+          </a>
+        </div>
+     </div>
+   </div>
+
+   <!-- ============ BOTÓN DE MENÚ (sutil · esquina superior derecha) ============ -->
+   <button class="menu-fab js-menu-trigger" id="menuFab" aria-label="Ir al menú de programas" aria-controls="menuView">
+     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+     <span class="mf-label">Menú</span>
+   </button>
+
+   <!-- ============ PAGINADOR (todas las láminas) ============ -->
+   <div class="pager" id="pager">
+     <button class="pg-btn" id="pgPrev" title="Anterior (←)" aria-label="Lámina anterior">
+       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+     </button>
+     <span class="pg-count"><b id="pgNum">1</b> / <span id="pgTotal">19</span></span>
+     <button class="pg-btn" id="pgNext" title="Siguiente (→)" aria-label="Lámina siguiente">
+       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6"/></svg>
+     </button>
+   </div>
+  </main>
+
+  <!-- Modal · gráfico ampliado -->
+  <div class="chart-modal" id="chartModal" hidden>
+    <div class="cm-box">
+      <div class="cm-head">
+        <h3>Meta MEF · Ejec. Proy. · Ejecución</h3>
+        <button class="cm-close" id="cmClose" title="Cerrar (Esc)">✕</button>
+      </div>
+      <div class="cm-body"><canvas id="chartBig"></canvas></div>
+    </div>
+  </div>
+
+  <script src="js/projects-v2.js"></script>
+  <script src="js/chartjs-v2.min.js"></script>
+  <script src="js/main-v2.js"></script>
+</body>
+</html>

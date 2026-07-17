@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Administración — Cartera Priorizada</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  
+  <!-- SheetJS for Excel Import/Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #002b69;
+      --primary-dark: #001740;
+      --primary-tint: rgba(0, 43, 105, 0.05);
+      --secondary: #bb0027;
+      --secondary-hover: #99001f;
+      --accent-green: #6fa55f;
+      --accent-green-hover: #58874a;
+      --accent-gold: #e9c16a;
+      
+      --bg: #f3f4f6;
+      --surface: #ffffff;
+      --border: #e5e7eb;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      
+      --radius: 8px;
+      --transition: all 0.2s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Public Sans", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    /* Layout */
+    .admin-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Top Bar */
+    header {
+      background: var(--primary-dark);
+      color: #fff;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      text-transform: uppercase;
+    }
+
+    .brand .badge {
+      background: var(--accent-gold);
+      color: var(--primary-dark);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: var(--transition);
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #093c85;
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover {
+      background: #f9fafb;
+      border-color: #d1d5db;
+    }
+
+    .btn-danger {
+      background: var(--secondary);
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: var(--secondary-hover);
+    }
+
+    .btn-success {
+      background: var(--accent-green);
+      color: #fff;
+    }
+    .btn-success:hover {
+      background: var(--accent-green-hover);
+    }
+
+    .btn-accent {
+      background: var(--accent-gold);
+      color: var(--primary-dark);
+    }
+    .btn-accent:hover {
+      background: #dbb358;
+    }
+
+    .btn-outline-white {
+      background: transparent;
+      color: #fff;
+      border-color: rgba(255,255,255,0.4);
+    }
+    .btn-outline-white:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: #fff;
+    }
+
+    /* Main Area Split */
+    .main-split {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      background: #fff;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      background: #f9fafb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-header h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+    }
+
+    .project-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: var(--transition);
+      user-select: none;
+    }
+
+    .list-item:hover {
+      background: #f3f4f6;
+    }
+
+    .list-item.active {
+      background: var(--primary-tint);
+      border-left: 4px solid var(--primary);
+    }
+
+    .list-item.section-item {
+      background: #f9fafb;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+      margin-top: 10px;
+    }
+
+    .list-item.section-item.active {
+      background: var(--primary-tint);
+      border-left: 4px solid var(--primary);
+    }
+
+    .list-item-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      margin-right: 8px;
+    }
+
+    .list-item-title .item-acro {
+      font-weight: 800;
+      color: var(--primary);
+      font-size: 12px;
+    }
+    
+    .list-item-title .item-name {
+      font-size: 12px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .list-item-title .proj-tab {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .list-item-title .proj-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge-cui {
+      background: #e5e7eb;
+      color: var(--text-muted);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .sidebar-actions {
+      padding: 12px;
+      border-top: 1px solid var(--border);
+      background: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .reorder-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .add-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    /* Content Pane */
+    .content-pane {
+      flex: 1;
+      background: #f9fafb;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .editor-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .editor-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .editor-header h3 {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--primary-dark);
+    }
+
+    .editor-tabs {
+      background: #f3f4f6;
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      padding: 12px 16px;
+      background: transparent;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .tab-btn:hover {
+      color: var(--primary);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .editor-body {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Form Fields */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .col-3 { grid-column: span 3; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    .col-8 { grid-column: span 8; }
+    .col-9 { grid-column: span 9; }
+    .col-12 { grid-column: span 12; }
+
+    label {
+      font-weight: 700;
+      color: var(--primary-dark);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      background: #f9fafb;
+      transition: var(--transition);
+      width: 100%;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 3px var(--primary-tint);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* Dynamic Lists (Hitos) */
+    .dynamic-list-item {
+      display: grid;
+      grid-template-columns: 140px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    /* Table Chart Editor */
+    .chart-edit-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .chart-edit-table th,
+    .chart-edit-table td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: center;
+    }
+
+    .chart-edit-table th {
+      background: #f3f4f6;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+
+    .chart-edit-table td input {
+      width: 55px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      text-align: right;
+      font-size: 12px;
+    }
+
+    .chart-edit-table td.row-label {
+      font-weight: 700;
+      text-align: left;
+      background: #f9fafb;
+      font-size: 12px;
+    }
+
+    /* No selection state */
+    .no-selection {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 40px;
+    }
+
+    .no-selection svg {
+      color: #d1d5db;
+      margin-bottom: 16px;
+    }
+
+    .no-selection h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    /* Excel Info Drawer/Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: var(--transition);
+    }
+
+    .modal.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: #fff;
+      border-radius: 12px;
+      width: min(800px, 90vw);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      transform: translateY(20px);
+      transition: var(--transition);
+    }
+
+    .modal.active .modal-content {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--primary-dark);
+      color: #fff;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: 0;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .modal-body h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    .modal-body ul {
+      margin-left: 20px;
+      margin-bottom: 16px;
+    }
+
+    .modal-body li {
+      margin-bottom: 6px;
+    }
+
+    .excel-table-preview {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin: 12px 0;
+    }
+
+    .excel-table-preview th,
+    .excel-table-preview td {
+      border: 1px solid var(--border);
+      padding: 6px;
+      text-align: left;
+    }
+
+    .excel-table-preview th {
+      background: #f3f4f6;
+      font-weight: 700;
+    }
+
+    /* Hidden inputs */
+    #excelFile {
+      display: none;
+    }
+
+    .alert-banner {
+      background: #fef2f2;
+      border: 1px solid rgba(187,0,39,0.2);
+      color: var(--secondary);
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="admin-container">
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <h1>Panel de Administración</h1>
+        <span class="badge">Cartera Priorizada</span>
+      </div>
+      
+      <div class="top-actions">
+        <a href="index.html" class="btn btn-outline-white">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          Ver Reporte
+        </a>
+        <button class="btn btn-secondary" onclick="showExcelStructure()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          Estructura Excel
+        </button>
+        <button class="btn btn-secondary" onclick="exportToExcel()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Exportar Excel
+        </button>
+        <button class="btn btn-secondary" onclick="document.getElementById('excelFile').click()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Importar Excel
+        </button>
+        <input type="file" id="excelFile" accept=".xlsx, .xls" onchange="handleExcelUpload(event)">
+        
+        <button class="btn btn-danger" onclick="resetDefault()" style="margin-left: 10px;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Restablecer
+        </button>
+        <button class="btn btn-success" onclick="saveToLocalStorage(true)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+          Guardar Cambios
+        </button>
+        <button class="btn btn-accent" onclick="downloadJS()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Descargar JS
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="main-split">
+      
+      <!-- Left Sidebar (Projects List & Reordering) -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <h2>Estructura de Proyectos</h2>
+        </div>
+        
+        <div class="project-list" id="projectList">
+          <!-- Populated by JS -->
+        </div>
+
+        <div class="sidebar-actions">
+          <div class="reorder-btns">
+            <button class="btn btn-secondary" onclick="moveActiveUp()" title="Mover arriba">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 15l-6-6-6 6"/></svg>
+              Subir
+            </button>
+            <button class="btn btn-secondary" onclick="moveActiveDown()" title="Mover abajo">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+              Bajar
+            </button>
+          </div>
+          <div class="add-btns">
+            <button class="btn btn-primary" onclick="addNewSection()">+ Programa</button>
+            <button class="btn btn-primary" onclick="addNewProject()">+ Proyecto</button>
+          </div>
+          <button class="btn btn-danger" onclick="deleteActiveItem()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+            Eliminar Seleccionado
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Form Editor -->
+      <div class="content-pane">
+        
+        <!-- Welcome/No Selection Screen -->
+        <div id="noSelectionScreen" class="no-selection">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17h6M9 13h6M9 9h3"/></svg>
+          <h3>Selecciona un Programa o Proyecto</h3>
+          <p>Haz clic en cualquier elemento del panel izquierdo para ver y editar sus campos.</p>
+        </div>
+
+        <!-- Form Card -->
+        <div id="editorCard" class="editor-card" style="display: none;">
+          
+          <div class="editor-header">
+            <h3 id="editingTitle">Editar Elemento</h3>
+          </div>
+
+          <!-- Section Editor Forms -->
+          <div id="sectionEditor" style="display: none;" class="editor-body">
+            <div class="form-grid">
+              <div class="form-group col-4">
+                <label>Identificador Único (ID)</label>
+                <input type="text" id="sec-id" oninput="updateActiveFromForm('id', this.value)">
+                <span style="font-size: 11px; color: var(--text-muted);">Ejemplo: pnsu, paslc, etc.</span>
+              </div>
+              <div class="form-group col-4">
+                <label>Acrónimo del Programa</label>
+                <input type="text" id="sec-acro" oninput="updateActiveFromForm('acro', this.value)">
+                <span style="font-size: 11px; color: var(--text-muted);">Ejemplo: PNSU, PASLC</span>
+              </div>
+              <div class="form-group col-12">
+                <label>Nombre Largo del Programa</label>
+                <input type="text" id="sec-name" oninput="updateActiveFromForm('name', this.value)">
+                <span style="font-size: 11px; color: var(--text-muted);">Ejemplo: Programa Nacional de Saneamiento Urbano</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project Editor Forms -->
+          <div id="projectEditor" style="display: none; height: 100%; display: flex; flex-direction: column;">
+            
+            <div class="editor-tabs">
+              <button class="tab-btn active" onclick="switchTab(0)">1. General</button>
+              <button class="tab-btn" onclick="switchTab(1)">2. Financiero</button>
+              <button class="tab-btn" onclick="switchTab(2)">3. Alertas y Notas</button>
+              <button class="tab-btn" onclick="switchTab(3)">4. Hitos</button>
+              <button class="tab-btn" onclick="switchTab(4)">5. Gráfico 2026</button>
+            </div>
+
+            <div class="editor-body" style="flex: 1; overflow-y: auto;">
+              
+              <!-- Tab 1: General Info -->
+              <div class="tab-content active" id="tab-0">
+                <div class="form-grid">
+                  <div class="form-group col-4">
+                    <label>Código Identificador ID</label>
+                    <input type="text" id="proj-id" oninput="updateActiveFromForm('id', this.value)">
+                    <span style="font-size: 11px; color: var(--text-muted);">Debe ser único. Ejemplo: juliaca</span>
+                  </div>
+                  <div class="form-group col-4">
+                    <label>Nombre Pestaña Menú</label>
+                    <input type="text" id="proj-tab" oninput="updateActiveFromForm('tab', this.value)">
+                    <span style="font-size: 11px; color: var(--text-muted);">Ejemplo: Juliaca Puno</span>
+                  </div>
+                  <div class="form-group col-4">
+                    <label>Código Único CUI</label>
+                    <input type="text" id="proj-cui" oninput="updateActiveFromForm('cui', this.value)">
+                  </div>
+
+                  <div class="form-group col-8">
+                    <label>Título Completo en Lámina</label>
+                    <input type="text" id="proj-title" oninput="updateActiveFromForm('title', this.value)">
+                  </div>
+                  <div class="form-group col-4">
+                    <label>Plazo Límite Contrato (Deadline)</label>
+                    <input type="text" id="proj-deadline" oninput="updateActiveFromForm('deadline', this.value)">
+                  </div>
+
+                  <div class="form-group col-4">
+                    <label>Estado del Proyecto</label>
+                    <select id="proj-status" onchange="updateActiveFromForm('status', this.value)">
+                      <option value="En Ejecución">En Ejecución</option>
+                      <option value="Por Etapas">Por Etapas</option>
+                    </select>
+                  </div>
+                  <div class="form-group col-8">
+                    <label>Sub-estado o Tipo de Sistema</label>
+                    <input type="text" id="proj-statustype" oninput="updateActiveFromForm('statusType', this.value)">
+                    <span style="font-size: 11px; color: var(--text-muted);">Ejemplo: agua potable y alcantarillado</span>
+                  </div>
+
+                  <div class="form-group col-3">
+                    <label>Fecha de Inicio</label>
+                    <input type="text" id="proj-inicio" oninput="updateActiveFromForm('fechaInicio', this.value)">
+                  </div>
+                  <div class="form-group col-3">
+                    <label>Fecha de Fin</label>
+                    <input type="text" id="proj-fin" oninput="updateActiveFromForm('fechaFin', this.value)">
+                  </div>
+                  <div class="form-group col-3">
+                    <label>Avance Programado</label>
+                    <input type="text" id="proj-avprog" oninput="updateActiveFromForm('avProg', this.value)">
+                  </div>
+                  <div class="form-group col-3">
+                    <label>Avance Físico Ejecutado</label>
+                    <input type="text" id="proj-avejec" oninput="updateActiveFromForm('avEjec', this.value)">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 2: Financial -->
+              <div class="tab-content" id="tab-1">
+                <div class="form-grid">
+                  <div class="form-group col-4">
+                    <label>Costo Total del Proyecto</label>
+                    <input type="text" id="proj-costo" oninput="updateActiveFinForm('costo', this.value)">
+                    <span style="font-size: 11px; color: var(--text-muted);">Ejemplo: S/ 1,706.4 MM</span>
+                  </div>
+                  <div class="form-group col-4">
+                    <label>Devengado Acumulado</label>
+                    <input type="text" id="proj-devengado" oninput="updateActiveFinForm('devengado', this.value)">
+                  </div>
+                  <div class="form-group col-4">
+                    <label>Avance Financiero %</label>
+                    <input type="text" id="proj-avance" oninput="updateActiveFinForm('avance', this.value)">
+                  </div>
+
+                  <div class="form-group col-4">
+                    <label>PIM 2026</label>
+                    <input type="text" id="proj-pim" oninput="updateActiveFinForm('pim', this.value)">
+                  </div>
+                  <div class="form-group col-4">
+                    <label>Certificado 2026</label>
+                    <input type="text" id="proj-cert" oninput="updateActiveFinForm('certificado', this.value)">
+                  </div>
+                  <div class="form-group col-4">
+                    <label>Devengado 2026</label>
+                    <input type="text" id="proj-dev26" oninput="updateActiveFinForm('devengado26', this.value)">
+                  </div>
+
+                  <div class="form-group col-4">
+                    <label>PIM por Ejecutar</label>
+                    <input type="text" id="proj-pimej" oninput="updateActiveFinForm('pimEjecutar', this.value)">
+                  </div>
+                  <div class="form-group col-4">
+                    <label>FF · RO</label>
+                    <input type="text" id="proj-ro" oninput="updateActiveFinForm('ffRO', this.value)">
+                  </div>
+                  <div class="form-group col-4">
+                    <label>FF · ROOC</label>
+                    <input type="text" id="proj-rooc" oninput="updateActiveFinForm('ffROOC', this.value)">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 3: Alertas, Notas, Riesgos -->
+              <div class="tab-content" id="tab-2">
+                <div class="form-grid">
+                  <div class="form-group col-12">
+                    <label>Alerta Financiera / Presupuestaria (Vacío si no hay)</label>
+                    <input type="text" id="proj-alert" oninput="updateActiveAlertForm(this.value)">
+                    <span style="font-size: 11px; color: var(--secondary);">Si se rellena, se mostrará una franja roja de advertencia en el reporte.</span>
+                  </div>
+
+                  <div class="form-group col-12" style="margin-top: 10px;">
+                    <label>Notas y Observaciones (Una por línea)</label>
+                    <textarea id="proj-notes" style="height: 140px;" oninput="updateActiveArrayForm('notes', this.value)"></textarea>
+                    <span style="font-size: 11px; color: var(--text-muted);">Escribe una observación por cada línea. Éstas se mostrarán con viñetas.</span>
+                  </div>
+
+                  <div class="form-group col-12" style="margin-top: 10px;">
+                    <label>Riesgos Identificados (Uno por línea)</label>
+                    <textarea id="proj-riesgo" style="height: 120px;" oninput="updateActiveArrayForm('riesgo', this.value)"></textarea>
+                    <span style="font-size: 11px; color: var(--text-muted);">Escribe un riesgo por cada línea. Éstos se mostrarán en la sección inferior de riesgo.</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 4: Hitos -->
+              <div class="tab-content" id="tab-3">
+                <p style="margin-bottom: 12px; color: var(--text-muted);">Define los hitos del proyecto cronológicamente. Se mostrarán como una línea de tiempo.</p>
+                <div id="hitosListContainer">
+                  <!-- Populated by JS -->
+                </div>
+                <button class="btn btn-secondary" onclick="addHitoRow()" style="margin-top: 10px;">+ Agregar Hito</button>
+              </div>
+
+              <!-- Tab 5: Chart -->
+              <div class="tab-content" id="tab-4">
+                <div class="form-grid" style="margin-bottom: 16px;">
+                  <div class="form-group col-4">
+                    <label>Valor Máximo Sugerido del Eje Y (MM)</label>
+                    <input type="number" id="chart-max" oninput="updateActiveChartMax(this.value)">
+                    <span style="font-size: 11px; color: var(--text-muted);">Controla el límite superior visual del gráfico.</span>
+                  </div>
+                </div>
+
+                <label>Valores Mensuales 2026 (En Millones de Soles - Usar decimales, dejar vacío para nulo)</label>
+                <div style="overflow-x: auto; margin-top: 8px;">
+                  <table class="chart-edit-table" id="chartValuesTable">
+                    <thead>
+                      <tr>
+                        <th>Serie / Mes</th>
+                        <th>Ene</th>
+                        <th>Feb</th>
+                        <th>Mar</th>
+                        <th>Abr</th>
+                        <th>May</th>
+                        <th>Jun</th>
+                        <th>Jul</th>
+                        <th>Ago</th>
+                        <th>Set</th>
+                        <th>Oct</th>
+                        <th>Nov</th>
+                        <th>Dic</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr id="row-ejecucion">
+                        <td class="row-label">Ejecución 2026</td>
+                        <!-- Populated by JS -->
+                      </tr>
+                      <tr id="row-ejecProy">
+                        <td class="row-label">Ejec. Proy. 2026</td>
+                        <!-- Populated by JS -->
+                      </tr>
+                      <tr id="row-metaMEF">
+                        <td class="row-label">Meta MEF 2026</td>
+                        <!-- Populated by JS -->
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Excel Structure Guide Modal -->
+  <div class="modal" id="excelModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Estructura del Archivo Excel</h3>
+        <button class="modal-close" onclick="closeExcelStructure()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Para cargar o actualizar proyectos de forma masiva, el archivo de Excel debe contener una hoja con la siguiente estructura de columnas (se recomienda exportar primero para usarlo como plantilla):</p>
+        
+        <h4>Columnas del Archivo:</h4>
+        <table class="excel-table-preview">
+          <thead>
+            <tr>
+              <th>Columna</th>
+              <th>Descripción</th>
+              <th>Ejemplo de sección</th>
+              <th>Ejemplo de proyecto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>Tipo</b></td>
+              <td>"seccion" (programa) o "proyecto"</td>
+              <td>seccion</td>
+              <td>proyecto</td>
+            </tr>
+            <tr>
+              <td><b>ID Programa</b></td>
+              <td>Código corto del programa</td>
+              <td>pnsu</td>
+              <td>(vacío)</td>
+            </tr>
+            <tr>
+              <td><b>Nombre Programa</b></td>
+              <td>Nombre largo (solo para tipo seccion)</td>
+              <td>Programa Nacional de Saneamiento Urbano</td>
+              <td>(vacío)</td>
+            </tr>
+            <tr>
+              <td><b>Acrónimo</b></td>
+              <td>Acrónimo del programa (solo seccion)</td>
+              <td>PNSU</td>
+              <td>(vacío)</td>
+            </tr>
+            <tr>
+              <td><b>ID Proyecto</b></td>
+              <td>Código corto del proyecto (único)</td>
+              <td>(vacío)</td>
+              <td>juliaca</td>
+            </tr>
+            <tr>
+              <td><b>Pestaña</b></td>
+              <td>Texto corto para pestañas</td>
+              <td>(vacío)</td>
+              <td>Juliaca Puno</td>
+            </tr>
+            <tr>
+              <td><b>Título</b></td>
+              <td>Título que se muestra arriba</td>
+              <td>(vacío)</td>
+              <td>Juliaca Puno — BID</td>
+            </tr>
+            <tr>
+              <td><b>Estado</b></td>
+              <td>"En Ejecución" o "Por Etapas"</td>
+              <td>(vacío)</td>
+              <td>Por Etapas</td>
+            </tr>
+            <tr>
+              <td><b>Notas (sep. por |)</b></td>
+              <td>Líneas de observaciones separadas por barra vertical</td>
+              <td>(vacío)</td>
+              <td>Etapa 1: Culminada | Etapa 2: Obra en ej.</td>
+            </tr>
+            <tr>
+              <td><b>Riesgos (sep. por |)</b></td>
+              <td>Riesgos identificados separados por barra vertical</td>
+              <td>(vacío)</td>
+              <td>Retraso en licitación | Conflictos sociales</td>
+            </tr>
+            <tr>
+              <td><b>Hitos</b></td>
+              <td>Lista de hitos formato "Fecha:Título | Fecha:Título"</td>
+              <td>(vacío)</td>
+              <td>22/07/26: Aprobación | 15/08/26: Obra</td>
+            </tr>
+            <tr>
+              <td><b>Grafico Ejecución</b></td>
+              <td>12 valores separados por comas para cada mes (Ene-Dic)</td>
+              <td>(vacío)</td>
+              <td>0.3,0.4,54.4,133.8,,,,,,,,</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <h4>¿En qué parte se ubican los nuevos proyectos?</h4>
+        <p>El orden en el reporte sigue estrictamente el orden de filas que tiene el Excel. Todo proyecto se agrupa visualmente debajo de la <b>Fila de Sección (Programa)</b> que tenga inmediatamente arriba en la tabla.</p>
+        
+        <div style="text-align: right; margin-top: 15px;">
+          <button class="btn btn-primary" onclick="closeExcelStructure()">Entendido</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/projects-v2.js"></script>
+  
+  <script>
+    // Global Projects State loaded from projects-v2.js (window.PROJECTS)
+    let PROJECTS_DATA = [];
+    let activeIndex = -1;
+
+    // Load Data
+    function initData() {
+      try {
+        const local = localStorage.getItem('priorizadas_projects');
+        if (local) {
+          PROJECTS_DATA = JSON.parse(local);
+        } else {
+          PROJECTS_DATA = window.PROJECTS || [];
+        }
+      } catch (e) {
+        console.error(e);
+        PROJECTS_DATA = window.PROJECTS || [];
+      }
+      renderSidebar();
+      if (PROJECTS_DATA.length > 0) {
+        selectItem(0);
+      }
+    }
+
+    // Render left panel sidebar
+    function renderSidebar() {
+      const container = document.getElementById('projectList');
+      container.innerHTML = '';
+      
+      PROJECTS_DATA.forEach((p, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `list-item ${p.type === 'section' ? 'section-item' : ''}`;
+        if (index === activeIndex) {
+          itemDiv.classList.add('active');
+        }
+        itemDiv.onclick = () => selectItem(index);
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'list-item-title';
+
+        if (p.type === 'section') {
+          titleDiv.innerHTML = `
+            <span class="item-acro">[SECCIÓN] ${p.acro || 'Sin Acrónimo'}</span>
+            <span class="item-name">${p.name || 'Sin Nombre'}</span>
+          `;
+        } else {
+          titleDiv.innerHTML = `
+            <span class="proj-tab">${p.tab || 'Proyecto sin nombre'}</span>
+            <span class="proj-title">${p.title || ''}</span>
+          `;
+        }
+        itemDiv.appendChild(titleDiv);
+
+        if (p.type !== 'section' && p.cui) {
+          const badge = document.createElement('span');
+          badge.className = 'badge-cui';
+          badge.textContent = `CUI ${p.cui}`;
+          itemDiv.appendChild(badge);
+        }
+
+        container.appendChild(itemDiv);
+      });
+    }
+
+    // Select Item from Sidebar
+    function selectItem(index) {
+      activeIndex = index;
+      
+      // Update sidebar active highlights
+      const items = document.querySelectorAll('.project-list .list-item');
+      items.forEach((item, idx) => {
+        if (idx === index) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+
+      const p = PROJECTS_DATA[index];
+      if (!p) {
+        document.getElementById('noSelectionScreen').style.display = 'flex';
+        document.getElementById('editorCard').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('noSelectionScreen').style.display = 'none';
+      document.getElementById('editorCard').style.display = 'flex';
+
+      const editingTitle = document.getElementById('editingTitle');
+      const sectionEditor = document.getElementById('sectionEditor');
+      const projectEditor = document.getElementById('projectEditor');
+
+      if (p.type === 'section') {
+        editingTitle.textContent = `Editar Sección: ${p.acro || ''}`;
+        sectionEditor.style.display = 'block';
+        projectEditor.style.display = 'none';
+
+        // Load Section values
+        document.getElementById('sec-id').value = p.id || '';
+        document.getElementById('sec-acro').value = p.acro || '';
+        document.getElementById('sec-name').value = p.name || '';
+      } else {
+        editingTitle.textContent = `Editar Proyecto: ${p.tab || ''}`;
+        sectionEditor.style.display = 'none';
+        projectEditor.style.display = 'flex';
+
+        // Load Project values
+        document.getElementById('proj-id').value = p.id || '';
+        document.getElementById('proj-tab').value = p.tab || '';
+        document.getElementById('proj-cui').value = p.cui || '';
+        document.getElementById('proj-title').value = p.title || '';
+        document.getElementById('proj-deadline').value = p.deadline || '';
+        document.getElementById('proj-status').value = p.status || 'En Ejecución';
+        document.getElementById('proj-statustype').value = p.statusType || '';
+        
+        document.getElementById('proj-inicio').value = p.fechaInicio || '';
+        document.getElementById('proj-fin').value = p.fechaFin || '';
+        document.getElementById('proj-avprog').value = p.avProg || '';
+        document.getElementById('proj-avejec').value = p.avEjec || '';
+
+        // Financial values
+        const fin = p.fin || {};
+        document.getElementById('proj-costo').value = fin.costo || '';
+        document.getElementById('proj-devengado').value = fin.devengado || '';
+        document.getElementById('proj-avance').value = fin.avance || '';
+        document.getElementById('proj-pim').value = fin.pim || '';
+        document.getElementById('proj-cert').value = fin.certificado || '';
+        document.getElementById('proj-dev26').value = fin.devengado26 || '';
+        document.getElementById('proj-pimej').value = fin.pimEjecutar || '';
+        document.getElementById('proj-ro').value = fin.ffRO || '';
+        document.getElementById('proj-rooc').value = fin.ffROOC || '';
+
+        // Notes and risks
+        document.getElementById('proj-alert').value = p.alert ? p.alert.text || '' : '';
+        document.getElementById('proj-notes').value = (p.notes || []).join('\n');
+        document.getElementById('proj-riesgo').value = (p.riesgo || []).join('\n');
+
+        // Hitos
+        renderHitosList(p.hitos || []);
+
+        // Chart Max and Values Table
+        const chart = p.chart || {};
+        document.getElementById('chart-max').value = chart.max || '';
+        renderChartInputs(chart);
+      }
+      
+      // Default to general tab (first tab)
+      switchTab(0);
+    }
+
+    // Switch Tabs inside project editor
+    function switchTab(tabIdx) {
+      const tabs = document.querySelectorAll('.tab-btn');
+      const contents = document.querySelectorAll('.tab-content');
+      
+      tabs.forEach((tab, idx) => {
+        if (idx === tabIdx) tab.classList.add('active');
+        else tab.classList.remove('active');
+      });
+
+      contents.forEach((content, idx) => {
+        if (idx === tabIdx) content.classList.add('active');
+        else content.classList.remove('active');
+      });
+    }
+
+    // Form Update Helpers (Updates local memory instantly on user input)
+    function updateActiveFromForm(field, value) {
+      if (activeIndex === -1 || !PROJECTS_DATA[activeIndex]) return;
+      PROJECTS_DATA[activeIndex][field] = value;
+      
+      // Refresh sidebar item title dynamically
+      const activeSidebarItem = document.querySelector('.project-list .list-item.active');
+      if (activeSidebarItem) {
+        const titleSpan = activeSidebarItem.querySelector('.proj-tab, .item-acro');
+        if (titleSpan) {
+          if (PROJECTS_DATA[activeIndex].type === 'section') {
+            titleSpan.textContent = `[SECCIÓN] ${PROJECTS_DATA[activeIndex].acro || 'Sin Acrónimo'}`;
+            const nameSpan = activeSidebarItem.querySelector('.item-name');
+            if (nameSpan) nameSpan.textContent = PROJECTS_DATA[activeIndex].name || 'Sin Nombre';
+          } else {
+            titleSpan.textContent = PROJECTS_DATA[activeIndex].tab || 'Proyecto sin nombre';
+            const subtitleSpan = activeSidebarItem.querySelector('.proj-title');
+            if (subtitleSpan) subtitleSpan.textContent = PROJECTS_DATA[activeIndex].title || '';
+          }
+        }
+      }
+    }
+
+    function updateActiveFinForm(field, value) {
+      if (activeIndex === -1 || !PROJECTS_DATA[activeIndex]) return;
+      if (!PROJECTS_DATA[activeIndex].fin) PROJECTS_DATA[activeIndex].fin = {};
+      PROJECTS_DATA[activeIndex].fin[field] = value;
+    }
+
+    function updateActiveAlertForm(value) {
+      if (activeIndex === -1 || !PROJECTS_DATA[activeIndex]) return;
+      if (value.trim() === '') {
+        PROJECTS_DATA[activeIndex].alert = null;
+      } else {
+        PROJECTS_DATA[activeIndex].alert = { text: value };
+      }
+    }
+
+    function updateActiveArrayForm(field, value) {
+      if (activeIndex === -1 || !PROJECTS_DATA[activeIndex]) return;
+      // split by new lines and clean empty
+      PROJECTS_DATA[activeIndex][field] = value.split('\n').map(s => s.trim()).filter(Boolean);
+    }
+
+    // Hitos management
+    function renderHitosList(hitos) {
+      const container = document.getElementById('hitosListContainer');
+      container.innerHTML = '';
+      hitos.forEach((h, idx) => {
+        const row = document.createElement('div');
+        row.className = 'dynamic-list-item';
+        row.innerHTML = `
+          <input type="text" placeholder="Fecha (ej: 22/07/26)" value="${h.fecha || ''}" oninput="updateHito(${idx}, 'fecha', this.value)">
+          <input type="text" placeholder="Título/Descripción del hito" value="${h.titulo || ''}" oninput="updateHito(${idx}, 'titulo', this.value)">
+          <button class="btn btn-danger" onclick="deleteHito(${idx})" style="padding: 6px 10px;">✕</button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function addHitoRow() {
+      if (activeIndex === -1 || !PROJECTS_DATA[activeIndex]) return;
+      if (!PROJECTS_DATA[activeIndex].hitos) PROJECTS_DATA[activeIndex].hitos = [];
+      PROJECTS_DATA[activeIndex].hitos.push({ fecha: '', titulo: '' });
+      renderHitosList(PROJECTS_DATA[activeIndex].hitos);
+    }
+
+    function updateHito(idx, field, value) {
+      if (activeIndex === -1 || !PROJECTS_DATA[activeIndex] || !PROJECTS_DATA[activeIndex].hitos) return;
+      PROJECTS_DATA[activeIndex].hitos[idx][field] = value;
+    }
+
+    function deleteHito(idx) {
+      if (activeIndex === -1 || !PROJECTS_DATA[activeIndex] || !PROJECTS_DATA[activeIndex].hitos) return;
+      PROJECTS_DATA[activeIndex].hitos.splice(idx, 1);
+      renderHitosList(PROJECTS_DATA[activeIndex].hitos);
+    }
+
+    // Chart Management
+    function updateActiveChartMax(val) {
+      if (activeIndex === -1 || !PROJECTS_DATA[activeIndex]) return;
+      if (!PROJECTS_DATA[activeIndex].chart) PROJECTS_DATA[activeIndex].chart = {};
+      PROJECTS_DATA[activeIndex].chart.max = parseFloat(val) || null;
+    }
+
+    function renderChartInputs(chart) {
+      const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
+      const series = ['ejecucion', 'ejecProy', 'metaMEF'];
+      
+      series.forEach(serie => {
+        const tr = document.getElementById(`row-${serie}`);
+        // Keep only first td (the label)
+        const labelTd = tr.querySelector('.row-label');
+        tr.innerHTML = '';
+        tr.appendChild(labelTd);
+        
+        const dataArr = chart[serie] || Array(12).fill(null);
+        
+        meses.forEach((m, mIdx) => {
+          const val = dataArr[mIdx];
+          const td = document.createElement('td');
+          td.innerHTML = `
+            <input type="text" value="${val === null || val === undefined ? '' : val}" oninput="updateChartValue('${serie}', ${mIdx}, this.value)">
+          `;
+          tr.appendChild(td);
+        });
+      });
+    }
+
+    function updateChartValue(serie, mIdx, val) {
+      if (activeIndex === -1 || !PROJECTS_DATA[activeIndex]) return;
+      if (!PROJECTS_DATA[activeIndex].chart) PROJECTS_DATA[activeIndex].chart = {};
+      if (!PROJECTS_DATA[activeIndex].chart[serie]) PROJECTS_DATA[activeIndex].chart[serie] = Array(12).fill(null);
+      
+      const cleanVal = val.trim();
+      if (cleanVal === '') {
+        PROJECTS_DATA[activeIndex].chart[serie][mIdx] = null;
+      } else {
+        const num = parseFloat(cleanVal);
+        PROJECTS_DATA[activeIndex].chart[serie][mIdx] = isNaN(num) ? null : num;
+      }
+    }
+
+    // Reordering Items in local memory
+    function moveActiveUp() {
+      if (activeIndex <= 0 || activeIndex >= PROJECTS_DATA.length) return;
+      const temp = PROJECTS_DATA[activeIndex];
+      PROJECTS_DATA[activeIndex] = PROJECTS_DATA[activeIndex - 1];
+      PROJECTS_DATA[activeIndex - 1] = temp;
+      activeIndex--;
+      renderSidebar();
+      selectItem(activeIndex);
+    }
+
+    function moveActiveDown() {
+      if (activeIndex < 0 || activeIndex >= PROJECTS_DATA.length - 1) return;
+      const temp = PROJECTS_DATA[activeIndex];
+      PROJECTS_DATA[activeIndex] = PROJECTS_DATA[activeIndex + 1];
+      PROJECTS_DATA[activeIndex + 1] = temp;
+      activeIndex++;
+      renderSidebar();
+      selectItem(activeIndex);
+    }
+
+    // Adding New items
+    function addNewSection() {
+      const newSec = {
+        type: "section",
+        id: "nuevo-programa",
+        acro: "NUEVO",
+        name: "Nuevo Programa de Inversión"
+      };
+      
+      // Insert after current selection, or at the end
+      if (activeIndex !== -1) {
+        PROJECTS_DATA.splice(activeIndex + 1, 0, newSec);
+        activeIndex++;
+      } else {
+        PROJECTS_DATA.push(newSec);
+        activeIndex = PROJECTS_DATA.length - 1;
+      }
+      renderSidebar();
+      selectItem(activeIndex);
+    }
+
+    function addNewProject() {
+      const newProj = {
+        id: "nuevo-proyecto",
+        tab: "Nuevo Proyecto",
+        title: "Título de la Lámina del Proyecto",
+        status: "En Ejecución",
+        statusType: "agua potable",
+        cui: "0000000",
+        fin: {
+          costo: "S/ 0.0 MM",
+          devengado: "S/ 0.0 MM",
+          avance: "0%",
+          pim: "S/ 0.0 MM",
+          certificado: "S/ 0.0 MM",
+          devengado26: "S/ 0.0 MM",
+          pimEjecutar: "S/ 0.0 MM",
+          ffRO: "S/ 0.0 MM",
+          ffROOC: "—"
+        },
+        fechaInicio: "—",
+        fechaFin: "—",
+        avProg: "—",
+        avEjec: "—",
+        notes: [
+          "Escribe aquí la primera nota u observación sobre la ejecución."
+        ],
+        alert: null,
+        hitos: [],
+        riesgo: [
+          "Sin riesgos identificados."
+        ],
+        deadline: "—",
+        chart: {
+          max: 10,
+          ejecucion: Array(12).fill(null),
+          ejecProy: Array(12).fill(null),
+          metaMEF: Array(12).fill(null)
+        }
+      };
+      
+      if (activeIndex !== -1) {
+        PROJECTS_DATA.splice(activeIndex + 1, 0, newProj);
+        activeIndex++;
+      } else {
+        PROJECTS_DATA.push(newProj);
+        activeIndex = PROJECTS_DATA.length - 1;
+      }
+      renderSidebar();
+      selectItem(activeIndex);
+    }
+
+    function deleteActiveItem() {
+      if (activeIndex === -1 || PROJECTS_DATA.length === 0) return;
+      
+      const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar este elemento? Esta acción no se puede deshacer hasta guardar.`);
+      if (!confirmDelete) return;
+
+      PROJECTS_DATA.splice(activeIndex, 1);
+      if (activeIndex >= PROJECTS_DATA.length) {
+        activeIndex = PROJECTS_DATA.length - 1;
+      }
+      
+      renderSidebar();
+      if (activeIndex !== -1) {
+        selectItem(activeIndex);
+      } else {
+        document.getElementById('noSelectionScreen').style.display = 'flex';
+        document.getElementById('editorCard').style.display = 'none';
+      }
+    }
+
+    // Persist & Save
+    function saveToLocalStorage(showAlert = false) {
+      try {
+        localStorage.setItem('priorizadas_projects', JSON.stringify(PROJECTS_DATA));
+        if (showAlert) {
+          alert('¡Guardado con éxito! Ahora puedes refrescar la pestaña del reporte "Ver Reporte" para ver los cambios aplicados.');
+        }
+      } catch(e) {
+        console.error(e);
+        alert('Error al guardar los datos en el navegador.');
+      }
+    }
+
+    function resetDefault() {
+      const confirmReset = confirm('¿Estás seguro de que quieres restablecer todos los cambios? Se perderán las modificaciones no guardadas en archivo JS.');
+      if (!confirmReset) return;
+      
+      localStorage.removeItem('priorizadas_projects');
+      activeIndex = 0;
+      initData();
+      alert('Se han restablecido los proyectos por defecto desde js/projects-v2.js.');
+    }
+
+    // Serializer helper for projects-v2.js download
+    function serializeProjectsData() {
+      let out = `/* =====================================================================
+   projects.js — Cartera Priorizada (réplica del PPT "Cartera Priorizada")
+   ===================================================================== */
+window.MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
+window.MESES_LARGOS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
+
+window.PROJECTS = [\n\n`;
+
+      PROJECTS_DATA.forEach((p, idx) => {
+        if (p.type === "section") {
+          out += `  /* ============================== ${p.acro} ============================== */\n`;
+          out += `  { type: "section", id: "${p.id}", acro: "${p.acro}", name: "${p.name}" }`;
+        } else {
+          out += `  {\n`;
+          out += `    id: ${JSON.stringify(p.id)}, tab: ${JSON.stringify(p.tab)}, title: ${JSON.stringify(p.title)},\n`;
+          out += `    status: ${JSON.stringify(p.status)}, statusType: ${JSON.stringify(p.statusType)}, cui: ${JSON.stringify(p.cui)},\n`;
+          out += `    fin: {\n`;
+          out += `      costo: ${JSON.stringify(p.fin ? p.fin.costo : "")}, devengado: ${JSON.stringify(p.fin ? p.fin.devengado : "")}, avance: ${JSON.stringify(p.fin ? p.fin.avance : "")},\n`;
+          out += `      pim: ${JSON.stringify(p.fin ? p.fin.pim : "")}, certificado: ${JSON.stringify(p.fin ? p.fin.certificado : "")}, devengado26: ${JSON.stringify(p.fin ? p.fin.devengado26 : "")},\n`;
+          out += `      pimEjecutar: ${JSON.stringify(p.fin ? p.fin.pimEjecutar : "")}, ffRO: ${JSON.stringify(p.fin ? p.fin.ffRO : "")}, ffROOC: ${JSON.stringify(p.fin ? p.fin.ffROOC : "—")}\n`;
+          out += `    },\n`;
+          out += `    fechaInicio: ${JSON.stringify(p.fechaInicio)}, fechaFin: ${JSON.stringify(p.fechaFin)}, avProg: ${JSON.stringify(p.avProg)}, avEjec: ${JSON.stringify(p.avEjec)},\n`;
+          
+          out += `    notes: [\n`;
+          out += (p.notes || []).map(n => `      ${JSON.stringify(n)}`).join(",\n") + `\n`;
+          out += `    ],\n`;
+          
+          if (p.alert && p.alert.text) {
+            out += `    alert: { text: ${JSON.stringify(p.alert.text)} },\n`;
+          } else {
+            out += `    alert: null,\n`;
+          }
+          
+          out += `    hitos: [\n`;
+          out += (p.hitos || []).map(h => `      { fecha: ${JSON.stringify(h.fecha)}, titulo: ${JSON.stringify(h.titulo)} }`).join(",\n") + `\n`;
+          out += `    ],\n`;
+          
+          out += `    riesgo: [\n`;
+          out += (p.riesgo || []).map(r => `      ${JSON.stringify(r)}`).join(",\n") + `\n`;
+          out += `    ],\n`;
+          
+          out += `    deadline: ${JSON.stringify(p.deadline)},\n`;
+          
+          out += `    chart: {\n`;
+          out += `      max: ${(p.chart && p.chart.max) ? p.chart.max : 10},\n`;
+          out += `      ejecucion: [${(p.chart && p.chart.ejecucion) ? p.chart.ejecucion.map(v => v === null ? 'null' : v).join(", ") : Array(12).fill('null').join(', ')}],\n`;
+          out += `      ejecProy: [${(p.chart && p.chart.ejecProy) ? p.chart.ejecProy.map(v => v === null ? 'null' : v).join(", ") : Array(12).fill('null').join(', ')}],\n`;
+          out += `      metaMEF: [${(p.chart && p.chart.metaMEF) ? p.chart.metaMEF.map(v => v === null ? 'null' : v).join(", ") : Array(12).fill('null').join(', ')}]\n`;
+          out += `    }\n`;
+          
+          out += `  }`;
+        }
+        
+        if (idx < PROJECTS_DATA.length - 1) {
+          out += `,\n\n`;
+        } else {
+          out += `\n`;
+        }
+      });
+
+      out += `\n];\n`;
+      return out;
+    }
+
+    function downloadJS() {
+      const jsContent = serializeProjectsData();
+      const blob = new Blob([jsContent], {type: "application/javascript;charset=utf-8"});
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "projects-v2.js";
+      link.click();
+    }
+
+    // Excel Export
+    function exportToExcel() {
+      const data = [];
+      PROJECTS_DATA.forEach(p => {
+        if (p.type === "section") {
+          data.push({
+            "Tipo": "seccion",
+            "ID Programa": p.id || "",
+            "Nombre Programa": p.name || "",
+            "Acrónimo": p.acro || "",
+            "ID Proyecto": "",
+            "Pestaña": "",
+            "Título": "",
+            "Estado": "",
+            "Tipo de Estado": "",
+            "CUI": "",
+            "Plazo Desembolso": "",
+            "Fecha Inicio": "",
+            "Fecha Fin": "",
+            "Avance Programado": "",
+            "Avance Ejecutado": "",
+            "Costo Total": "",
+            "Devengado Acumulado": "",
+            "Avance Financiero": "",
+            "PIM 2026": "",
+            "Certificado 2026": "",
+            "Devengado 2026": "",
+            "PIM por Ejecutar": "",
+            "FF RO": "",
+            "FF ROOC": "",
+            "Alerta Texto": "",
+            "Notas (separadas por |)": "",
+            "Riesgos (separados por |)": "",
+            "Hitos (Fecha: Descripción | Fecha: Descripción)": "",
+            "Grafico Max": "",
+            "Grafico Ejecución (12 meses sep por coma)": "",
+            "Grafico Ejec. Proyectada (12 meses)": "",
+            "Grafico Meta MEF (12 meses)": ""
+          });
+        } else {
+          const notesStr = (p.notes || []).join("|");
+          const risksStr = (p.riesgo || []).join("|");
+          const hitosStr = (p.hitos || []).map(h => `${h.fecha}:${h.titulo}`).join("|");
+          
+          const ejecStr = p.chart && p.chart.ejecucion ? p.chart.ejecucion.map(v => v === null ? "" : v).join(",") : "";
+          const projStr = p.chart && p.chart.ejecProy ? p.chart.ejecProy.map(v => v === null ? "" : v).join(",") : "";
+          const mefStr = p.chart && p.chart.metaMEF ? p.chart.metaMEF.map(v => v === null ? "" : v).join(",") : "";
+          
+          data.push({
+            "Tipo": "proyecto",
+            "ID Programa": "",
+            "Nombre Programa": "",
+            "Acrónimo": "",
+            "ID Proyecto": p.id || "",
+            "Pestaña": p.tab || "",
+            "Título": p.title || "",
+            "Estado": p.status || "",
+            "Tipo de Estado": p.statusType || "",
+            "CUI": p.cui || "",
+            "Plazo Desembolso": p.deadline || "",
+            "Fecha Inicio": p.fechaInicio || "",
+            "Fecha Fin": p.fechaFin || "",
+            "Avance Programado": p.avProg || "",
+            "Avance Ejecutado": p.avEjec || "",
+            "Costo Total": p.fin ? p.fin.costo || "" : "",
+            "Devengado Acumulado": p.fin ? p.fin.devengado || "" : "",
+            "Avance Financiero": p.fin ? p.fin.avance || "" : "",
+            "PIM 2026": p.fin ? p.fin.pim || "" : "",
+            "Certificado 2026": p.fin ? p.fin.certificado || "" : "",
+            "Devengado 2026": p.fin ? p.fin.devengado26 || "" : "",
+            "PIM por Ejecutar": p.fin ? p.fin.pimEjecutar || "" : "",
+            "FF RO": p.fin ? p.fin.ffRO || "" : "",
+            "FF ROOC": p.fin ? p.fin.ffROOC || "" : "",
+            "Alerta Texto": p.alert ? p.alert.text || "" : "",
+            "Notas (separadas por |)": notesStr,
+            "Riesgos (separados por |)": risksStr,
+            "Hitos (Fecha: Descripción | Fecha: Descripción)": hitosStr,
+            "Grafico Max": p.chart ? p.chart.max || "" : "",
+            "Grafico Ejecución (12 meses sep por coma)": ejecStr,
+            "Grafico Ejec. Proyectada (12 meses)": projStr,
+            "Grafico Meta MEF (12 meses)": mefStr
+          });
+        }
+      });
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Proyectos");
+      XLSX.writeFile(wb, "cartera_priorizada_proyectos.xlsx");
+    }
+
+    // Excel Import
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const confirmImport = confirm('Al importar un archivo Excel se sobrescribirá la lista actual de proyectos en este panel. ¿Deseas continuar?');
+      if (!confirmImport) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const rows = XLSX.utils.sheet_to_json(worksheet);
+          
+          const importedProjects = [];
+          rows.forEach(r => {
+            const tipo = (r["Tipo"] || "").toLowerCase().trim();
+            if (tipo === "seccion" || tipo === "sección") {
+              importedProjects.push({
+                type: "section",
+                id: r["ID Programa"] || "",
+                acro: r["Acrónimo"] || "",
+                name: r["Nombre Programa"] || ""
+              });
+            } else {
+              const notesRaw = r["Notas (separadas por |)"] || "";
+              const notes = notesRaw ? String(notesRaw).split("|").map(s => s.trim()).filter(Boolean) : [];
+              
+              const riesgosRaw = r["Riesgos (separados por |)"] || "";
+              const riesgo = riesgosRaw ? String(riesgosRaw).split("|").map(s => s.trim()).filter(Boolean) : [];
+              
+              const hitosRaw = r["Hitos (Fecha: Descripción | Fecha: Descripción)"] || "";
+              const hitos = [];
+              if (hitosRaw) {
+                String(hitosRaw).split("|").forEach(item => {
+                  const idx = item.indexOf(":");
+                  if (idx !== -1) {
+                    hitos.push({
+                      fecha: item.substring(0, idx).trim(),
+                      titulo: item.substring(idx + 1).trim()
+                    });
+                  } else {
+                    hitos.push({
+                      fecha: "",
+                      titulo: item.trim()
+                    });
+                  }
+                });
+              }
+              
+              function parseChartSeries(val) {
+                if (val === undefined || val === null || val === '') return Array(12).fill(null);
+                const parts = String(val).split(",");
+                const arr = parts.map(p => {
+                  const trimmed = p.trim();
+                  if (trimmed === "" || trimmed.toLowerCase() === "null") return null;
+                  const num = parseFloat(trimmed);
+                  return isNaN(num) ? null : num;
+                });
+                while (arr.length < 12) arr.push(null);
+                return arr.slice(0, 12);
+              }
+
+              const chart = {
+                max: parseFloat(r["Grafico Max"]) || 10,
+                ejecucion: parseChartSeries(r["Grafico Ejecución (12 meses sep por coma)"]),
+                ejecProy: parseChartSeries(r["Grafico Ejec. Proyectada (12 meses)"]),
+                metaMEF: parseChartSeries(r["Grafico Meta MEF (12 meses)"])
+              };
+
+              const alertText = r["Alerta Texto"] || "";
+
+              importedProjects.push({
+                id: r["ID Proyecto"] || "",
+                tab: r["Pestaña"] || "",
+                title: r["Título"] || "",
+                status: r["Estado"] || "En Ejecución",
+                statusType: r["Tipo de Estado"] || "",
+                cui: String(r["CUI"] || ""),
+                fin: {
+                  costo: r["Costo Total"] || "",
+                  devengado: r["Devengado Acumulado"] || "",
+                  avance: r["Avance Financiero"] || "",
+                  pim: r["PIM 2026"] || "",
+                  certificado: r["Certificado 2026"] || "",
+                  devengado26: r["Devengado 2026"] || "",
+                  pimEjecutar: r["PIM por Ejecutar"] || "",
+                  ffRO: r["FF RO"] || "",
+                  ffROOC: r["FF ROOC"] || ""
+                },
+                fechaInicio: r["Fecha Inicio"] || "",
+                fechaFin: r["Fecha Fin"] || "",
+                avProg: r["Avance Programado"] || "",
+                avEjec: r["Avance Ejecutado"] || "",
+                notes: notes,
+                alert: alertText ? { text: alertText } : null,
+                hitos: hitos,
+                riesgo: riesgo,
+                deadline: r["Plazo Desembolso"] || "",
+                chart: chart
+              });
+            }
+          });
+
+          if (importedProjects.length > 0) {
+            PROJECTS_DATA = importedProjects;
+            saveToLocalStorage();
+            renderSidebar();
+            selectItem(0);
+            alert("¡Importación exitosa! Se cargaron " + PROJECTS_DATA.length + " elementos.");
+          } else {
+            alert("No se encontraron registros válidos en el archivo Excel.");
+          }
+        } catch(err) {
+          console.error(err);
+          alert("Error al parsear el archivo Excel. Verifica el formato del archivo.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      
+      // Reset input value to allow uploading the same file again
+      event.target.value = '';
+    }
+
+    // Modal control
+    function showExcelStructure() {
+      document.getElementById('excelModal').classList.add('active');
+    }
+
+    function closeExcelStructure() {
+      document.getElementById('excelModal').classList.remove('active');
+    }
+
+    // Run on startup
+    window.addEventListener('DOMContentLoaded', initData);
+  </script>
+</body>
+</html>
