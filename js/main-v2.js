@@ -5,17 +5,31 @@
 (function () {
   "use strict";
 
-  var P = window.PROJECTS;
+  // ---------- cortes de información ----------
+  // Cada corte = { id, fecha, label, projects[] }. Se toma de localStorage (editado
+  // desde admin.html) o, en su defecto, de js/projects-v2.js (window.CORTES).
+  var CORTES = null;
   try {
-    var localProj = localStorage.getItem('priorizadas_projects');
-    if (localProj) {
-      P = JSON.parse(localProj);
-    }
+    var localCortes = localStorage.getItem('priorizadas_cortes');
+    if (localCortes) CORTES = JSON.parse(localCortes);
   } catch (e) {
-    console.error("Error al cargar proyectos de localStorage", e);
+    console.error("Error al cargar cortes de localStorage", e);
+  }
+  if (!CORTES || !CORTES.length) CORTES = window.CORTES;
+  if ((!CORTES || !CORTES.length) && window.PROJECTS) {
+    // compatibilidad con un projects-v2.js antiguo (sin cortes)
+    CORTES = [{ id: "unico", fecha: "", label: "", projects: window.PROJECTS }];
   }
   var MESES = window.MESES, MESES_L = window.MESES_LARGOS;
-  if (!P || !P.length || !window.Chart) return;
+  if (!CORTES || !CORTES.length || !window.Chart) return;
+
+  // corte activo: el último (más reciente) salvo que el usuario haya elegido otro
+  var corteIdx = CORTES.length - 1;
+  try {
+    var savedCorte = localStorage.getItem('priorizadas_corte');
+    for (var ci = 0; ci < CORTES.length; ci++) { if (CORTES[ci].id === savedCorte) corteIdx = ci; }
+  } catch (e) { /* sin persistencia */ }
+  var P = CORTES[corteIdx].projects || [];
 
   var FONT = "'Public Sans', system-ui, sans-serif";
   Chart.defaults.font.family = FONT;
@@ -208,8 +222,6 @@
     else if (e.key === "ArrowRight") { go(1); }
   });
 
-  // total de láminas en el paginador
-  setText("pgTotal", P.length);
 
   // ---------- modal del gráfico ----------
   var modal = $("chartModal"), openBtn = $("chartExpand"), closeBtn = $("cmClose");
@@ -226,10 +238,13 @@
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closeModal(); });
 
   // ---------- página-menú de programas (estilo carátula) ----------
-  (function buildMenu() {
-    var triggers = document.querySelectorAll(".js-menu-trigger");
-    var grid = $("menuProgs");
-    if (!triggers.length || !grid) return;
+  var triggers = document.querySelectorAll(".js-menu-trigger");
+  var grid = $("menuProgs");
+
+  // construye (o reconstruye) las tarjetas de programa del corte activo
+  function buildMenuCards() {
+    if (!grid) return;
+    grid.innerHTML = "";
 
     // agrupar las láminas por programa (cada "section" abre un grupo)
     var groups = [];
@@ -267,33 +282,91 @@
       card.querySelector(".mp-meta b").textContent = g.count;
       grid.appendChild(card);
     });
+    mark();
+  }
 
-    // resalta el programa al que pertenece la lámina actual
-    function mark() {
-      grid.querySelectorAll(".menu-prog").forEach(function (el) {
-        var s = parseInt(el.dataset.start, 10), en = parseInt(el.dataset.end, 10);
-        el.classList.toggle("is-active", current >= s && current <= en);
-      });
-    }
+  // resalta el programa al que pertenece la lámina actual
+  function mark() {
+    if (!grid) return;
+    grid.querySelectorAll(".menu-prog").forEach(function (el) {
+      var s = parseInt(el.dataset.start, 10), en = parseInt(el.dataset.end, 10);
+      el.classList.toggle("is-active", current >= s && current <= en);
+    });
+  }
 
-    // ir a la página-menú (sin alterar `current`, para poder volver)
-    function showMenu() {
-      if (mainChart) { mainChart.destroy(); mainChart = null; }
-      if (bigChart) { bigChart.destroy(); bigChart = null; }
-      projectView.hidden = true;
-      coverView.hidden = true;
-      menuView.hidden = false;
-      if (frame) { frame.classList.add("is-cover"); frame.classList.add("is-menu"); }
-      mark();
-    }
+  // ir a la página-menú (sin alterar `current`, para poder volver)
+  function showMenu() {
+    if (mainChart) { mainChart.destroy(); mainChart = null; }
+    if (bigChart) { bigChart.destroy(); bigChart = null; }
+    projectView.hidden = true;
+    coverView.hidden = true;
+    menuView.hidden = false;
+    if (frame) { frame.classList.add("is-cover"); frame.classList.add("is-menu"); }
+    mark();
+  }
 
+  if (grid) {
     triggers.forEach(function (b) { b.addEventListener("click", showMenu); });
     openMenu = showMenu;   // expuesto para usar el menú como pantalla principal
     grid.addEventListener("click", function (e) {
       var t = e.target.closest("[data-index]");
       if (t) render(parseInt(t.dataset.index, 10));
     });
-  })();
+  }
+
+  // ---------- selector de corte de información ----------
+  var corteSelects = Array.prototype.slice.call(document.querySelectorAll(".js-corte-select"));
+
+  function corteLabel(c) { return c.label || c.fecha || c.id; }
+
+  // llena los <select> de corte (el más reciente primero) y marca el activo
+  function fillCorteSelects() {
+    corteSelects.forEach(function (sel) {
+      sel.innerHTML = "";
+      for (var i = CORTES.length - 1; i >= 0; i--) {
+        var opt = document.createElement("option");
+        opt.value = CORTES[i].id;
+        opt.textContent = sel.dataset.short ? (CORTES[i].fecha || corteLabel(CORTES[i])) : corteLabel(CORTES[i]);
+        sel.appendChild(opt);
+      }
+      sel.value = CORTES[corteIdx].id;
+      var wrap = sel.closest(".js-corte-wrap");
+      if (wrap) wrap.hidden = CORTES.length < 2;   // con un solo corte no hay nada que elegir
+    });
+    var lbl = $("menuCutoffLabel");
+    // con varios cortes el <select> muestra la fecha; con uno solo se escribe completa
+    if (lbl) lbl.textContent = CORTES.length > 1 ? "Corte de información al" : "Corte de información al " + corteLabel(CORTES[corteIdx]);
+    setText("pgTotal", P.length);
+  }
+
+  // aplica un corte: conserva la lámina actual si existe en el nuevo corte
+  function setCorte(id) {
+    var idx = -1;
+    for (var i = 0; i < CORTES.length; i++) { if (CORTES[i].id === id) idx = i; }
+    if (idx < 0 || idx === corteIdx) return;
+    var prevId = (P[current] && P[current].id) || null;
+    var onMenu = menuView && !menuView.hidden;
+
+    corteIdx = idx;
+    P = CORTES[corteIdx].projects || [];
+    try { localStorage.setItem('priorizadas_corte', CORTES[corteIdx].id); } catch (e) { /* sin persistencia */ }
+
+    fillCorteSelects();
+    buildMenuCards();
+
+    var next = -1;
+    for (var k = 0; k < P.length; k++) { if (P[k].id === prevId) next = k; }
+    if (onMenu) { current = Math.max(0, next); mark(); }
+    else if (next >= 0) { render(next); }
+    else { current = 0; showMenu(); }
+  }
+
+  corteSelects.forEach(function (sel) {
+    sel.addEventListener("change", function () { setCorte(sel.value); });
+  });
+
+  fillCorteSelects();
+  buildMenuCards();
 
   // ---------- auto-ajuste del sidebar ----------
   function fitSidebar() {

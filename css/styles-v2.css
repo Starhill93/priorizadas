@@ -486,3 +486,31 @@ body{
   flex-shrink: 0;
 }
 
+
+
+/* ======================= SELECTOR DE CORTE DE INFORMACIÓN ======================= */
+/* Los datos se guardan por fecha de corte; el usuario puede cambiar de corte
+   desde la píldora del menú o desde el paginador de las láminas. */
+[hidden]{display:none!important;}
+.corte-pick{display:inline-flex;align-items:center;margin-left:4px;padding-left:10px;
+  border-left:1px solid rgba(233,193,106,.4);}
+.corte-select,.pg-select{font:inherit;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;
+  color:#fff;background-color:rgba(0,43,105,.55);border:1px solid rgba(233,193,106,.5);border-radius:999px;
+  padding:4px 24px 4px 10px;line-height:1.2;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9c16a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 8px center;background-size:10px 10px;
+  transition:border-color .16s,background-color .16s;}
+.corte-select{font-size:inherit;}
+.corte-select:hover,.pg-select:hover{border-color:#e9c16a;background-color:rgba(0,43,105,.85);}
+.corte-select:focus-visible,.pg-select:focus-visible{outline:2px solid #e9c16a;outline-offset:2px;}
+.corte-select option,.pg-select option{color:#111;background:#fff;text-transform:none;letter-spacing:0;font-weight:600;}
+.pg-corte{display:inline-flex;align-items:center;gap:6px;margin-left:2px;
+  padding-left:clamp(8px,.8vw,14px);border-left:1px solid rgba(255,255,255,.18);
+  color:#dbe6f7;font-size:clamp(11px,.85vw,14px);font-weight:700;}
+.pg-corte svg{width:1.05em;height:1.05em;color:#e9c16a;flex:0 0 auto;}
+.pg-corte-k{text-transform:uppercase;letter-spacing:.06em;font-size:.85em;color:#dbe6f7;}
+.pg-select{font-size:.95em;padding:3px 22px 3px 9px;letter-spacing:.02em;}
+@media (max-width:760px){
+  .pg-corte-k{display:none;}
+  .corte-pick{margin-left:0;padding-left:8px;}
+}

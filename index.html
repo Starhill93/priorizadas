@@ -143,7 +143,10 @@
         <p class="menu-lead">Según PIM y número de inversiones · En millones de soles</p>
         <div class="menu-cutoff">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; vertical-align: middle;"><rect x="3" y="4" width="18" height="17" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span>Corte de información al 15 de julio del 2026</span>
+          <span id="menuCutoffLabel">Corte de información</span>
+          <span class="corte-pick js-corte-wrap" hidden>
+            <select class="corte-select js-corte-select" aria-label="Cambiar corte de información" title="Cambiar corte de información"></select>
+          </span>
         </div>
         <div class="menu-progs" id="menuProgs"></div>
       </div>
@@ -164,6 +167,11 @@
      <button class="pg-btn" id="pgNext" title="Siguiente (→)" aria-label="Lámina siguiente">
        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6"/></svg>
      </button>
+     <span class="pg-corte js-corte-wrap" hidden title="Corte de información">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="17" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+       <span class="pg-corte-k">Corte</span>
+       <select class="pg-select js-corte-select" data-short="1" aria-label="Cambiar corte de información"></select>
+     </span>
    </div>
   </main>
 

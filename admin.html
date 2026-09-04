@@ -280,6 +280,50 @@
       font-weight: 700;
     }
 
+    /* Barra de cortes de información (encima de la lista de proyectos) */
+    .corte-bar {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--primary-dark);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .corte-bar label {
+      color: #e9c16a;
+      font-size: 11px;
+    }
+    .corte-bar select {
+      background: #fff;
+      font-weight: 700;
+    }
+    .corte-bar .corte-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .corte-bar .corte-btns .btn {
+      flex: 1;
+      justify-content: center;
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+    .corte-meta {
+      font-size: 11px;
+      color: #dbe6f7;
+    }
+    .modal-footer {
+      padding: 14px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .form-help {
+      font-size: 11px;
+      color: var(--muted, #6b7280);
+    }
+
     .sidebar-actions {
       padding: 12px;
       border-top: 1px solid var(--border);
@@ -677,6 +721,17 @@
       
       <!-- Left Sidebar (Projects List & Reordering) -->
       <div class="sidebar">
+        <div class="corte-bar">
+          <label for="corteSelectAdmin">Corte de información</label>
+          <select id="corteSelectAdmin" onchange="selectCorte(this.value)"></select>
+          <div class="corte-meta" id="corteMeta"></div>
+          <div class="corte-btns">
+            <button class="btn btn-primary" onclick="openCorteModal('new')" title="Crear un nuevo corte (copiando los proyectos del corte seleccionado)">+ Corte</button>
+            <button class="btn btn-secondary" onclick="openCorteModal('edit')" title="Editar la fecha o etiqueta del corte">Editar</button>
+            <button class="btn btn-danger" onclick="deleteActiveCorte()" title="Eliminar el corte seleccionado">Eliminar</button>
+          </div>
+        </div>
+
         <div class="sidebar-header">
           <h2>Estructura de Proyectos</h2>
         </div>
@@ -953,6 +1008,38 @@
   </div>
 
   <!-- Excel Structure Guide Modal -->
+  <div class="modal" id="corteModal">
+    <div class="modal-content" style="width: min(520px, 90vw);">
+      <div class="modal-header">
+        <h3 id="corteModalTitle">Nuevo corte de información</h3>
+        <button class="modal-close" onclick="closeCorteModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group col-6">
+            <label for="corte-fecha">Fecha de corte</label>
+            <input type="text" id="corte-fecha" placeholder="dd/mm/aaaa" oninput="syncCorteLabel()">
+            <span class="form-help">Formato dd/mm/aaaa. Define el orden y el identificador del corte.</span>
+          </div>
+          <div class="form-group col-6">
+            <label for="corte-label">Etiqueta</label>
+            <input type="text" id="corte-label" placeholder="27 de agosto del 2026">
+            <span class="form-help">Texto que se muestra en el reporte.</span>
+          </div>
+          <div class="form-group col-12" id="corteCopyGroup">
+            <label for="corte-copy">Contenido inicial</label>
+            <select id="corte-copy"></select>
+            <span class="form-help">Se copian las láminas del corte elegido para luego actualizarlas.</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeCorteModal()">Cancelar</button>
+        <button class="btn btn-success" onclick="saveCorteModal()">Guardar corte</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="excelModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -1061,33 +1148,201 @@
   <script src="js/projects-v2.js"></script>
   
   <script>
-    // Global Projects State loaded from projects-v2.js (window.PROJECTS)
+    // Estado global: cortes de información (cada uno con su lista de láminas).
+    // CORTES_DATA = [{ id, fecha, label, projects: [...] }, ...] en orden cronológico.
+    // PROJECTS_DATA apunta SIEMPRE a CORTES_DATA[activeCorte].projects.
+    let CORTES_DATA = [];
+    let activeCorte = -1;
     let PROJECTS_DATA = [];
     let activeIndex = -1;
+    const STORAGE_KEY = 'priorizadas_cortes';
+
+    function defaultCortes() {
+      if (window.CORTES && window.CORTES.length) return JSON.parse(JSON.stringify(window.CORTES));
+      // compatibilidad con un projects-v2.js antiguo (sin cortes)
+      return [{ id: "unico", fecha: "", label: "Corte único", projects: JSON.parse(JSON.stringify(window.PROJECTS || [])) }];
+    }
 
     // Load Data
     function initData() {
       try {
-        const local = localStorage.getItem('priorizadas_projects');
-        if (local) {
-          PROJECTS_DATA = JSON.parse(local);
-        } else {
-          PROJECTS_DATA = window.PROJECTS || [];
-        }
+        const local = localStorage.getItem(STORAGE_KEY);
+        CORTES_DATA = local ? JSON.parse(local) : defaultCortes();
       } catch (e) {
         console.error(e);
-        PROJECTS_DATA = window.PROJECTS || [];
+        CORTES_DATA = defaultCortes();
       }
+      if (!Array.isArray(CORTES_DATA) || !CORTES_DATA.length) CORTES_DATA = defaultCortes();
+      CORTES_DATA.forEach(c => { if (!Array.isArray(c.projects)) c.projects = []; });
+      selectCorte(CORTES_DATA[CORTES_DATA.length - 1].id);
+    }
+
+    // ---------- Cortes ----------
+    function corteLabel(c) { return c.label || c.fecha || c.id; }
+
+    // "dd/mm/aaaa" -> "aaaa-mm-dd" (id ordenable). Devuelve null si no es válida.
+    function corteIdFromFecha(fecha) {
+      const m = /^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\s*$/.exec(fecha || '');
+      if (!m) return null;
+      const d = parseInt(m[1], 10), mo = parseInt(m[2], 10), y = parseInt(m[3], 10);
+      if (d < 1 || d > 31 || mo < 1 || mo > 12) return null;
+      return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    }
+
+    function fechaNormalizada(fecha) {
+      const id = corteIdFromFecha(fecha);
+      if (!id) return fecha;
+      const [y, mo, d] = id.split('-');
+      return d + '/' + mo + '/' + y;
+    }
+
+    const MESES_TXT = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+    function labelFromFecha(fecha) {
+      const id = corteIdFromFecha(fecha);
+      if (!id) return '';
+      const [y, mo, d] = id.split('-');
+      return parseInt(d, 10) + ' de ' + MESES_TXT[parseInt(mo, 10) - 1] + ' del ' + y;
+    }
+
+    function renderCorteSelect() {
+      const sel = document.getElementById('corteSelectAdmin');
+      sel.innerHTML = '';
+      for (let i = CORTES_DATA.length - 1; i >= 0; i--) {
+        const opt = document.createElement('option');
+        opt.value = CORTES_DATA[i].id;
+        opt.textContent = corteLabel(CORTES_DATA[i]) + (i === CORTES_DATA.length - 1 ? ' (más reciente)' : '');
+        sel.appendChild(opt);
+      }
+      if (activeCorte >= 0) sel.value = CORTES_DATA[activeCorte].id;
+      const meta = document.getElementById('corteMeta');
+      if (activeCorte >= 0) {
+        const n = PROJECTS_DATA.filter(p => p.type !== 'section').length;
+        meta.textContent = CORTES_DATA.length + ' corte(s) · este corte: ' + n + ' proyecto(s)';
+      } else {
+        meta.textContent = '';
+      }
+    }
+
+    function selectCorte(id) {
+      const idx = CORTES_DATA.findIndex(c => c.id === id);
+      if (idx < 0) return;
+      activeCorte = idx;
+      PROJECTS_DATA = CORTES_DATA[activeCorte].projects;
+      activeIndex = -1;
+      renderCorteSelect();
       renderSidebar();
       if (PROJECTS_DATA.length > 0) {
         selectItem(0);
+      } else {
+        document.getElementById('noSelectionScreen').style.display = 'flex';
+        document.getElementById('editorCard').style.display = 'none';
       }
+    }
+
+    // Reemplaza la lista de láminas del corte activo (importación Excel, etc.)
+    function replaceActiveProjects(list) {
+      CORTES_DATA[activeCorte].projects = list;
+      PROJECTS_DATA = list;
+    }
+
+    // Mantiene los cortes ordenados por fecha (id aaaa-mm-dd) y conserva el activo
+    function sortCortes() {
+      const activeId = activeCorte >= 0 ? CORTES_DATA[activeCorte].id : null;
+      CORTES_DATA.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      activeCorte = CORTES_DATA.findIndex(c => c.id === activeId);
+      PROJECTS_DATA = activeCorte >= 0 ? CORTES_DATA[activeCorte].projects : [];
+    }
+
+    let corteModalMode = 'new';
+    function openCorteModal(mode) {
+      corteModalMode = mode;
+      const isEdit = mode === 'edit';
+      if (isEdit && activeCorte < 0) return;
+      document.getElementById('corteModalTitle').textContent = isEdit ? 'Editar corte de información' : 'Nuevo corte de información';
+      document.getElementById('corte-fecha').value = isEdit ? (CORTES_DATA[activeCorte].fecha || '') : '';
+      document.getElementById('corte-label').value = isEdit ? (CORTES_DATA[activeCorte].label || '') : '';
+      document.getElementById('corteCopyGroup').style.display = isEdit ? 'none' : '';
+      if (!isEdit) {
+        const copy = document.getElementById('corte-copy');
+        copy.innerHTML = '';
+        for (let i = CORTES_DATA.length - 1; i >= 0; i--) {
+          const opt = document.createElement('option');
+          opt.value = CORTES_DATA[i].id;
+          opt.textContent = 'Copiar láminas del corte: ' + corteLabel(CORTES_DATA[i]);
+          copy.appendChild(opt);
+        }
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = 'Corte vacío (sin láminas)';
+        copy.appendChild(empty);
+        if (activeCorte >= 0) copy.value = CORTES_DATA[activeCorte].id;
+      }
+      document.getElementById('corteModal').classList.add('active');
+      document.getElementById('corte-fecha').focus();
+    }
+
+    function closeCorteModal() {
+      document.getElementById('corteModal').classList.remove('active');
+    }
+
+    // Sugiere la etiqueta a partir de la fecha si el usuario no la ha escrito
+    function syncCorteLabel() {
+      const lbl = document.getElementById('corte-label');
+      const auto = labelFromFecha(document.getElementById('corte-fecha').value);
+      if (auto && (!lbl.value || lbl.dataset.auto === '1')) {
+        lbl.value = auto;
+        lbl.dataset.auto = '1';
+      }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('corte-label').addEventListener('input', function () { this.dataset.auto = '0'; });
+    });
+
+    function saveCorteModal() {
+      const fecha = document.getElementById('corte-fecha').value.trim();
+      const id = corteIdFromFecha(fecha);
+      if (!id) { alert('Ingresa una fecha de corte válida (dd/mm/aaaa).'); return; }
+      const label = document.getElementById('corte-label').value.trim() || labelFromFecha(fecha);
+      const dup = CORTES_DATA.findIndex(c => c.id === id);
+
+      if (corteModalMode === 'edit') {
+        if (dup >= 0 && dup !== activeCorte) { alert('Ya existe otro corte con esa fecha.'); return; }
+        const c = CORTES_DATA[activeCorte];
+        c.id = id; c.fecha = fechaNormalizada(fecha); c.label = label;
+        sortCortes();
+        closeCorteModal();
+        selectCorte(id);
+        return;
+      }
+
+      if (dup >= 0) { alert('Ya existe un corte con esa fecha. Selecciónalo en la lista o usa otra fecha.'); return; }
+      const src = document.getElementById('corte-copy').value;
+      const srcCorte = CORTES_DATA.find(c => c.id === src);
+      const projects = srcCorte ? JSON.parse(JSON.stringify(srcCorte.projects)) : [];
+      CORTES_DATA.push({ id: id, fecha: fechaNormalizada(fecha), label: label, projects: projects });
+      activeCorte = CORTES_DATA.length - 1;
+      sortCortes();
+      closeCorteModal();
+      selectCorte(id);
+      alert('Corte "' + label + '" creado con ' + projects.length + ' lámina(s). Recuerda "Guardar Cambios" y "Descargar JS".');
+    }
+
+    function deleteActiveCorte() {
+      if (activeCorte < 0) return;
+      if (CORTES_DATA.length <= 1) { alert('No se puede eliminar el único corte existente.'); return; }
+      const c = CORTES_DATA[activeCorte];
+      if (!confirm('¿Eliminar el corte "' + corteLabel(c) + '" y todas sus láminas? Esta acción no se puede deshacer hasta guardar.')) return;
+      CORTES_DATA.splice(activeCorte, 1);
+      activeCorte = -1;
+      selectCorte(CORTES_DATA[CORTES_DATA.length - 1].id);
     }
 
     // Render left panel sidebar
     function renderSidebar() {
       const container = document.getElementById('projectList');
       container.innerHTML = '';
+      const h2 = document.querySelector('.sidebar-header h2');
+      if (h2 && activeCorte >= 0) h2.textContent = 'Láminas · corte ' + (CORTES_DATA[activeCorte].fecha || corteLabel(CORTES_DATA[activeCorte]));
       
       PROJECTS_DATA.forEach((p, index) => {
         const itemDiv = document.createElement('div');
@@ -1465,7 +1720,8 @@
     // Persist & Save
     function saveToLocalStorage(showAlert = false) {
       try {
-        localStorage.setItem('priorizadas_projects', JSON.stringify(PROJECTS_DATA));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(CORTES_DATA));
+        localStorage.removeItem('priorizadas_projects');   // clave antigua (sin cortes)
         if (showAlert) {
           alert('¡Guardado con éxito! Ahora puedes refrescar la pestaña del reporte "Ver Reporte" para ver los cambios aplicados.');
         }
@@ -1479,23 +1735,45 @@
       const confirmReset = confirm('¿Estás seguro de que quieres restablecer todos los cambios? Se perderán las modificaciones no guardadas en archivo JS.');
       if (!confirmReset) return;
       
+      localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem('priorizadas_projects');
       activeIndex = 0;
+      activeCorte = -1;
       initData();
       alert('Se han restablecido los proyectos por defecto desde js/projects-v2.js.');
     }
 
-    // Serializer helper for projects-v2.js download
+    // Serializer helper for projects-v2.js download (todos los cortes)
     function serializeProjectsData() {
       let out = `/* =====================================================================
    projects.js — Cartera Priorizada (réplica del PPT "Cartera Priorizada")
+   ---------------------------------------------------------------------
+   Los datos se organizan por CORTES de información (fecha de corte).
+   window.CORTES  → todos los cortes, en orden cronológico (el último es el más reciente).
+   window.PROJECTS → alias al corte más reciente (compatibilidad).
    ===================================================================== */
 window.MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
 window.MESES_LARGOS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
 
-window.PROJECTS = [\n\n`;
+window.CORTES = [\n`;
 
-      PROJECTS_DATA.forEach((p, idx) => {
+      CORTES_DATA.forEach((c, cIdx) => {
+        out += `\n  /* #################################################################### */\n`;
+        out += `  /* ####################  CORTE: ${corteLabel(c)}  #################### */\n`;
+        out += `  /* #################################################################### */\n`;
+        out += `  {\n    id: ${JSON.stringify(c.id)}, fecha: ${JSON.stringify(c.fecha || "")}, label: ${JSON.stringify(c.label || "")},\n`;
+        out += `    projects: [\n\n`;
+        out += serializeProjectList(c.projects || []);
+        out += `\n    ]\n  }` + (cIdx < CORTES_DATA.length - 1 ? `,\n` : `\n`);
+      });
+
+      out += `\n];\n\n/* Alias de compatibilidad: el corte más reciente */\nwindow.PROJECTS = window.CORTES[window.CORTES.length - 1].projects;\n`;
+      return out;
+    }
+
+    function serializeProjectList(list) {
+      let out = "";
+      list.forEach((p, idx) => {
         if (p.type === "section") {
           out += `  /* ============================== ${p.acro} ============================== */\n`;
           out += `  { type: "section", id: "${p.id}", acro: "${p.acro}", name: "${p.name}" }`;
@@ -1540,15 +1818,15 @@ window.PROJECTS = [\n\n`;
           out += `  }`;
         }
         
-        if (idx < PROJECTS_DATA.length - 1) {
+        if (idx < list.length - 1) {
           out += `,\n\n`;
         } else {
           out += `\n`;
         }
       });
 
-      out += `\n];\n`;
-      return out;
+      // indentar dos niveles (dentro de projects: [ ... ])
+      return out.split("\n").map(l => (l.trim() ? "    " + l : l)).join("\n");
     }
 
     function downloadJS() {
@@ -1648,7 +1926,8 @@ window.PROJECTS = [\n\n`;
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Proyectos");
-      XLSX.writeFile(wb, "cartera_priorizada_proyectos.xlsx");
+      const sufijo = activeCorte >= 0 ? "_" + CORTES_DATA[activeCorte].id : "";
+      XLSX.writeFile(wb, "cartera_priorizada_proyectos" + sufijo + ".xlsx");
     }
 
     // Excel Import
@@ -1656,7 +1935,7 @@ window.PROJECTS = [\n\n`;
       const file = event.target.files[0];
       if (!file) return;
 
-      const confirmImport = confirm('Al importar un archivo Excel se sobrescribirá la lista actual de proyectos en este panel. ¿Deseas continuar?');
+      const confirmImport = confirm('Al importar un archivo Excel se sobrescribirá la lista de proyectos del corte "' + (activeCorte >= 0 ? corteLabel(CORTES_DATA[activeCorte]) : '') + '". ¿Deseas continuar?');
       if (!confirmImport) return;
 
       const reader = new FileReader();
@@ -1759,8 +2038,9 @@ window.PROJECTS = [\n\n`;
           });
 
           if (importedProjects.length > 0) {
-            PROJECTS_DATA = importedProjects;
+            replaceActiveProjects(importedProjects);
             saveToLocalStorage();
+            renderCorteSelect();
             renderSidebar();
             selectItem(0);
             alert("¡Importación exitosa! Se cargaron " + PROJECTS_DATA.length + " elementos.");
